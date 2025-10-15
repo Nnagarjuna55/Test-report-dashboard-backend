@@ -1,7 +1,7 @@
 import request from 'supertest';
 import express from 'express';
 import fileRoutes from '../../routes/fileRoutes';
-import { FileSystemFabricator } from '../../config/fabrication';
+import { createFabricatedFileSystem } from '../../config/fabrication';
 import { TEST_DATA_DIR } from '../setup';
 
 const app = express();
@@ -10,9 +10,7 @@ app.use('/api', fileRoutes);
 
 describe('File Routes', () => {
     beforeAll(async () => {
-        // Create test file system
-        const fabricator = new FileSystemFabricator(TEST_DATA_DIR);
-        await fabricator.createFabricatedFileSystem();
+        await createFabricatedFileSystem(TEST_DATA_DIR);
     });
 
     describe('GET /api/list', () => {

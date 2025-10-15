@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import { connectDatabase } from './config/db';
-import { FileSystemFabricator } from './config/fabrication';
+import { createFabricatedFileSystem } from './config/fabrication';
 import fileRoutes from './routes/fileRoutes';
 import healthRoute from './routes/healthRoute';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -16,11 +16,32 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const DATA_DIR = process.env.DATA_DIR || '/data';
 
-const fabricator = new FileSystemFabricator(DATA_DIR);
+// Allow multiple frontend origins (comma-separated) or default common localhost ports
+const allowedOrigins = (
+  process.env.FRONTEND_URLS ||
+  process.env.FRONTEND_URL ||
+  'http://localhost:5173'
+)
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
+// Handle preflight requests
+app.options('*', cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(compression());
@@ -54,51 +75,30 @@ app.use(errorHandler);
 async function startServer() {
   try {
     console.log('Connecting to MongoDB...');
-    try {
-      await connectDatabase();
-      console.log('MongoDB connected successfully');
-    } catch (mongoError) {
+    const mongoConnected = await connectDatabase();
+    if (!mongoConnected) {
       console.log('MongoDB connection failed, using file-based data generation...');
     }
 
     console.log('Creating fabricated file system...');
-    await fabricator.createFabricatedFileSystem();
+    await createFabricatedFileSystem(DATA_DIR);
     console.log('Fabricated file system created successfully');
 
-    // Start server with simple port-fallback logic: if the desired port is in use,
-    // try the next one up to `maxAttempts` times. This prevents immediate crash
-    // when a local process is already bound to the default port (EADDRINUSE).
-    let currentPort = Number(PORT);
-    const maxAttempts = 5;
+    const server = app.listen(Number(PORT), '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Data directory: ${DATA_DIR}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`MongoDB URI: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/test-report-dashboard'}`);
+    });
 
-    function attemptListen(port: number, attemptsLeft: number) {
-      const server = app.listen(port, '0.0.0.0', () => {
-        console.log(`Server running on port ${port}`);
-        console.log(`Data directory: ${DATA_DIR}`);
-        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`MongoDB URI: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/test-report-dashboard'}`);
-      });
-
-      server.on('error', (err: any) => {
-        if (err && err.code === 'EADDRINUSE') {
-          console.error(`Port ${port} is already in use.`);
-          if (attemptsLeft > 0) {
-            const nextPort = port + 1;
-            console.log(`Attempting to listen on port ${nextPort} (${attemptsLeft} attempts left)...`);
-            // small delay before retrying to avoid tight loop
-            setTimeout(() => attemptListen(nextPort, attemptsLeft - 1), 250);
-          } else {
-            console.error(`No available ports found after ${maxAttempts} attempts. Exiting.`);
-            process.exit(1);
-          }
-        } else {
-          console.error('Server error:', err);
-          process.exit(1);
-        }
-      });
-    }
-
-    attemptListen(currentPort, maxAttempts);
+    server.on('error', (err: any) => {
+      if (err && err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please stop the process using it or set PORT to a different value.`);
+      } else {
+        console.error('Server error:', err);
+      }
+      process.exit(1);
+    });
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

@@ -1,23 +1,14 @@
 import { Router } from 'express';
-import { FileController } from '../controllers/fileController';
-import { FileService } from '../services/fileService';
+import { listDirectory, getFileContentHandler, downloadItem, getFileInfoHandler } from '../controllers/fileController';
+import { searchFiles, getFileStats } from '../services/fileService';
 
 const router = Router();
-const fileController = new FileController();
 
-// GET /api/list?path=<directory_path> - List directory contents
-router.get('/list', fileController.listDirectory);
+router.get('/list', listDirectory);
+router.get('/file', getFileContentHandler);
+router.get('/download', downloadItem);
+router.get('/info', getFileInfoHandler);
 
-// GET /api/file?path=<file_path> - Get file content
-router.get('/file', fileController.getFileContent);
-
-// GET /api/download?path=<item_path> - Download file or folder (as zip)
-router.get('/download', fileController.downloadItem);
-
-// GET /api/info?path=<file_path> - Get file information
-router.get('/info', fileController.getFileInfo);
-
-// GET /api/search?q=<query> - Search files
 router.get('/search', async (req, res) => {
     try {
         const { q: query, limit = '50' } = req.query;
@@ -30,7 +21,7 @@ router.get('/search', async (req, res) => {
             return;
         }
 
-        const results = await FileService.searchFiles(query, parseInt(limit as string));
+        const results = await searchFiles(query, parseInt(limit as string));
 
         res.json({
             success: true,
@@ -58,7 +49,6 @@ router.get('/search', async (req, res) => {
     }
 });
 
-// GET /api/stats?path=<directory_path> - Get directory statistics
 router.get('/stats', async (req, res) => {
     try {
         const { path: dirPath = '' } = req.query;
@@ -71,7 +61,7 @@ router.get('/stats', async (req, res) => {
             return;
         }
 
-        const stats = await FileService.getFileStats(dirPath);
+        const stats = await getFileStats(dirPath);
 
         res.json({
             success: true,

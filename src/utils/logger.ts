@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as path from 'path';
 
 export enum LogLevel {
     ERROR = 0,
@@ -15,65 +14,57 @@ export interface LogEntry {
     metadata?: any;
 }
 
-class Logger {
-    private logLevel: LogLevel;
-    private logFile?: string;
+const formatMessage = (level: LogLevel, message: string, metadata?: any): string => {
+    const timestamp = new Date().toISOString();
+    const levelName = LogLevel[level];
+    const metadataStr = metadata ? ` ${JSON.stringify(metadata)}` : '';
 
-    constructor(level: LogLevel = LogLevel.INFO, logFile?: string) {
-        this.logLevel = level;
-        this.logFile = logFile;
+    return `[${timestamp}] ${levelName}: ${message}${metadataStr}`;
+};
+
+const writeLog = (level: LogLevel, message: string, metadata?: any, logFile?: string): void => {
+    const currentLogLevel = process.env.LOG_LEVEL ? parseInt(process.env.LOG_LEVEL) : LogLevel.INFO;
+
+    if (level > currentLogLevel) return;
+
+    const formattedMessage = formatMessage(level, message, metadata);
+
+    if (level <= LogLevel.ERROR) {
+        console.error(formattedMessage);
+    } else if (level <= LogLevel.WARN) {
+        console.warn(formattedMessage);
+    } else {
+        console.log(formattedMessage);
     }
 
-    private formatMessage(level: LogLevel, message: string, metadata?: any): string {
-        const timestamp = new Date().toISOString();
-        const levelName = LogLevel[level];
-        const metadataStr = metadata ? ` ${JSON.stringify(metadata)}` : '';
-
-        return `[${timestamp}] ${levelName}: ${message}${metadataStr}`;
-    }
-
-    private writeLog(level: LogLevel, message: string, metadata?: any): void {
-        if (level > this.logLevel) return;
-
-        const formattedMessage = this.formatMessage(level, message, metadata);
-
-        // Console output
-        if (level <= LogLevel.ERROR) {
-            console.error(formattedMessage);
-        } else if (level <= LogLevel.WARN) {
-            console.warn(formattedMessage);
-        } else {
-            console.log(formattedMessage);
-        }
-
-        // File output (if configured)
-        if (this.logFile) {
-            try {
-                fs.appendFileSync(this.logFile, formattedMessage + '\n');
-            } catch (error) {
-                console.error('Failed to write to log file:', error);
-            }
+    if (logFile) {
+        try {
+            fs.appendFileSync(logFile, formattedMessage + '\n');
+        } catch (error) {
+            console.error('Failed to write to log file:', error);
         }
     }
+};
 
-    public error(message: string, metadata?: any): void {
-        this.writeLog(LogLevel.ERROR, message, metadata);
-    }
+export const error = (message: string, metadata?: any): void => {
+    writeLog(LogLevel.ERROR, message, metadata, process.env.LOG_FILE);
+};
 
-    public warn(message: string, metadata?: any): void {
-        this.writeLog(LogLevel.WARN, message, metadata);
-    }
+export const warn = (message: string, metadata?: any): void => {
+    writeLog(LogLevel.WARN, message, metadata, process.env.LOG_FILE);
+};
 
-    public info(message: string, metadata?: any): void {
-        this.writeLog(LogLevel.INFO, message, metadata);
-    }
+export const info = (message: string, metadata?: any): void => {
+    writeLog(LogLevel.INFO, message, metadata, process.env.LOG_FILE);
+};
 
-    public debug(message: string, metadata?: any): void {
-        this.writeLog(LogLevel.DEBUG, message, metadata);
-    }
-}
+export const debug = (message: string, metadata?: any): void => {
+    writeLog(LogLevel.DEBUG, message, metadata, process.env.LOG_FILE);
+};
 
-export const logger = new Logger(
-    process.env.LOG_LEVEL ? parseInt(process.env.LOG_LEVEL) : LogLevel.INFO,
-    process.env.LOG_FILE
-);
+export const logger = {
+    error,
+    warn,
+    info,
+    debug
+};

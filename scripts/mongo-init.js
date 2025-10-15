@@ -48,3 +48,4 @@ print('Database: test-report-dashboard');
 print('User: app_user');
 print('Indexes created for files collection');
 print('Settings and logs collections created');
+

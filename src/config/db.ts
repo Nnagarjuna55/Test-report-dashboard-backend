@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-// Set mongoose options to avoid deprecation warnings
 mongoose.set('strictQuery', false);
 
 export interface DatabaseConfig {
@@ -19,14 +18,15 @@ export const getDatabaseConfig = (): DatabaseConfig => {
     };
 };
 
-export const connectDatabase = async (): Promise<void> => {
+export const connectDatabase = async (): Promise<boolean> => {
     try {
         const config = getDatabaseConfig();
         await mongoose.connect(config.uri, config.options);
         console.log('✅ MongoDB connected successfully');
+        return true;
     } catch (error) {
         console.error('❌ MongoDB connection failed:', error);
-        process.exit(1);
+        return false;
     }
 };
 

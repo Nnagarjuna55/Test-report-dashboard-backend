@@ -1,133 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-export class DummyDataGenerator {
-    private dataDir: string;
-
-    constructor(dataDir: string = '/data') {
-        this.dataDir = dataDir;
+// Utility functions
+const ensureDirectoryExists = async (dirPath: string): Promise<void> => {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
     }
+};
 
-    public async generateTestData(): Promise<void> {
-        try {
-            console.log('Generating comprehensive test data...');
+const generateTestLog = (testType: string, status: string): string => {
+    const timestamp = new Date().toISOString();
+    const logLevel = status === 'failed' ? 'ERROR' : 'INFO';
 
-            // Create main test pipeline results directory
-            const testResultsDir = path.join(this.dataDir, 'test_pipeline_results');
-            await this.ensureDirectoryExists(testResultsDir);
-
-            // Generate 25 test job directories for demo purposes
-            const testJobs = [];
-            const testTypes = ['integration', 'unit', 'e2e', 'performance', 'smoke', 'regression', 'security', 'load', 'api', 'ui'];
-            const statuses = ['passed', 'failed', 'passed', 'passed', 'failed', 'passed', 'passed', 'failed', 'passed', 'passed'];
-
-            for (let i = 1; i <= 25; i++) {
-                const jobId = `job_${i.toString().padStart(3, '0')}`;
-                const testType = testTypes[i % testTypes.length];
-                const status = statuses[i % statuses.length];
-                testJobs.push({ id: jobId, type: testType, status });
-            }
-
-            for (const job of testJobs) {
-                await this.createTestJob(job.id, job.type, job.status, testResultsDir);
-            }
-
-            // Create additional directories for different test categories (reduced for demo)
-            await this.createTestCategory('unit_tests', testResultsDir);
-            await this.createTestCategory('integration_tests', testResultsDir);
-            await this.createTestCategory('e2e_tests', testResultsDir);
-
-            console.log('✅ Test data generation completed successfully');
-        } catch (error) {
-            console.error('❌ Error generating test data:', error);
-            throw error;
-        }
-    }
-
-    private async createTestJob(jobId: string, testType: string, status: string, baseDir: string): Promise<void> {
-        const jobDir = path.join(baseDir, jobId);
-        await this.ensureDirectoryExists(jobDir);
-
-        // Create essential test log files (reduced for demo)
-        const logFiles = [
-            { name: `${testType}_test.log`, content: this.generateTestLog(testType, status) },
-            { name: 'error.log', content: this.generateErrorLog(status) },
-            { name: 'debug.log', content: this.generateDebugLog(testType) }
-        ];
-
-        for (const logFile of logFiles) {
-            const filePath = path.join(jobDir, logFile.name);
-            fs.writeFileSync(filePath, logFile.content);
-        }
-
-        // Create test report HTML
-        const reportPath = path.join(jobDir, 'test_report.html');
-        const reportContent = this.generateTestReport(jobId, testType, status);
-        fs.writeFileSync(reportPath, reportContent);
-
-        // Create JSON results
-        const jsonPath = path.join(jobDir, 'test_results.json');
-        const jsonContent = this.generateTestResultsJson(jobId, testType, status);
-        fs.writeFileSync(jsonPath, JSON.stringify(jsonContent, null, 2));
-
-        // Create coverage report
-        const coveragePath = path.join(jobDir, 'coverage_report.html');
-        const coverageContent = this.generateCoverageReport(testType);
-        fs.writeFileSync(coveragePath, coverageContent);
-
-        // Create essential additional files (reduced for demo)
-        const additionalFiles = [
-            { name: 'performance.json', content: JSON.stringify(this.generatePerformanceData(), null, 2) },
-            { name: 'metrics.csv', content: this.generateMetricsCsv(testType) }
-        ];
-
-        for (const file of additionalFiles) {
-            const filePath = path.join(jobDir, file.name);
-            fs.writeFileSync(filePath, file.content);
-        }
-
-        console.log(`Created test job: ${jobId} (${testType}) - ${status}`);
-    }
-
-    private async createTestCategory(categoryName: string, baseDir: string): Promise<void> {
-        const categoryDir = path.join(baseDir, categoryName);
-        await this.ensureDirectoryExists(categoryDir);
-
-        // Create essential summary files for each category (reduced for demo)
-        const summaryFiles = [
-            { name: 'summary.txt', content: this.generateCategorySummary(categoryName) },
-            { name: 'README.md', content: this.generateCategoryReadme(categoryName) },
-            { name: 'config.json', content: this.generateCategoryConfig(categoryName) }
-        ];
-
-        for (const file of summaryFiles) {
-            const filePath = path.join(categoryDir, file.name);
-            const content = typeof file.content === 'string' ? file.content : JSON.stringify(file.content, null, 2);
-            fs.writeFileSync(filePath, content);
-        }
-
-        // Create a results subdirectory with essential test files (reduced for demo)
-        const resultsDir = path.join(categoryDir, 'results');
-        await this.ensureDirectoryExists(resultsDir);
-
-        const resultFiles = [
-            { name: 'test_suite_1.json', content: JSON.stringify(this.generateTestSuite('suite_1', categoryName), null, 2) },
-            { name: 'coverage_summary.html', content: this.generateCoverageSummary(categoryName) }
-        ];
-
-        for (const file of resultFiles) {
-            const filePath = path.join(resultsDir, file.name);
-            fs.writeFileSync(filePath, file.content);
-        }
-
-        console.log(`Created test category: ${categoryName}`);
-    }
-
-    private generateTestLog(testType: string, status: string): string {
-        const timestamp = new Date().toISOString();
-        const logLevel = status === 'failed' ? 'ERROR' : 'INFO';
-
-        return `[${timestamp}] ${logLevel} Starting ${testType} test execution
+    return `[${timestamp}] ${logLevel} Starting ${testType} test execution
 [${timestamp}] INFO Test environment: staging
 [${timestamp}] INFO Test configuration loaded successfully
 [${timestamp}] INFO Database connection established
@@ -142,16 +27,16 @@ export class DummyDataGenerator {
 [${timestamp}] INFO Total execution time: ${Math.floor(Math.random() * 300) + 60} seconds
 [${timestamp}] INFO Memory usage: ${Math.floor(Math.random() * 500) + 100}MB
 [${timestamp}] INFO Test artifacts saved to: /tmp/test_artifacts`;
+};
+
+const generateErrorLog = (status: string): string => {
+    if (status === 'passed') {
+        return `[${new Date().toISOString()}] INFO No errors detected during test execution
+[${new Date().toISOString()}] INFO All test cases completed successfully`;
     }
 
-    private generateErrorLog(status: string): string {
-        if (status === 'passed') {
-            return `[${new Date().toISOString()}] INFO No errors detected during test execution
-[${new Date().toISOString()}] INFO All test cases completed successfully`;
-        }
-
-        const timestamp = new Date().toISOString();
-        return `[${timestamp}] ERROR Test case failed: Login functionality
+    const timestamp = new Date().toISOString();
+    return `[${timestamp}] ERROR Test case failed: Login functionality
 [${timestamp}] ERROR Assertion failed: Expected "Welcome" but got "Error"
 [${timestamp}] ERROR Stack trace: 
     at LoginTest.verifyWelcomeMessage (LoginTest.js:45:12)
@@ -160,11 +45,11 @@ export class DummyDataGenerator {
 [${timestamp}] ERROR Database connection timeout after 30 seconds
 [${timestamp}] ERROR API endpoint returned 500 status code
 [${timestamp}] ERROR Memory allocation failed: Cannot allocate 1GB`;
-    }
+};
 
-    private generateDebugLog(testType: string): string {
-        const timestamp = new Date().toISOString();
-        return `[${timestamp}] DEBUG Initializing ${testType} test environment
+const generateDebugLog = (testType: string): string => {
+    const timestamp = new Date().toISOString();
+    return `[${timestamp}] DEBUG Initializing ${testType} test environment
 [${timestamp}] DEBUG Loading test configuration from config.json
 [${timestamp}] DEBUG Setting up test database with sample data
 [${timestamp}] DEBUG Configuring test browser: Chrome 120.0
@@ -174,15 +59,15 @@ export class DummyDataGenerator {
 [${timestamp}] DEBUG Browser console logs captured
 [${timestamp}] DEBUG Network requests intercepted and logged
 [${timestamp}] DEBUG Screenshots saved to /tmp/screenshots`;
-    }
+};
 
-    private generateTestReport(jobId: string, testType: string, status: string): string {
-        const passRate = status === 'passed' ? '100%' : '60%';
-        const totalTests = 25;
-        const passedTests = status === 'passed' ? 25 : 15;
-        const failedTests = totalTests - passedTests;
+const generateTestReport = (jobId: string, testType: string, status: string): string => {
+    const passRate = status === 'passed' ? '100%' : '60%';
+    const totalTests = 25;
+    const passedTests = status === 'passed' ? 25 : 15;
+    const failedTests = totalTests - passedTests;
 
-        return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -226,40 +111,40 @@ export class DummyDataGenerator {
     </div>
 </body>
 </html>`;
-    }
+};
 
-    private generateTestResultsJson(jobId: string, testType: string, status: string): any {
-        return {
-            jobId,
-            testType,
-            status,
-            timestamp: new Date().toISOString(),
-            summary: {
-                total: 25,
-                passed: status === 'passed' ? 25 : 15,
-                failed: status === 'passed' ? 0 : 10,
-                skipped: 0,
-                duration: Math.floor(Math.random() * 300) + 60
-            },
-            tests: [
-                { name: 'Login functionality', status: 'passed', duration: 5.2 },
-                { name: 'User registration', status: 'passed', duration: 3.8 },
-                { name: 'Data validation', status: 'passed', duration: 2.1 },
-                { name: 'API endpoints', status: status === 'passed' ? 'passed' : 'failed', duration: 8.5 },
-                { name: 'Database operations', status: 'passed', duration: 4.3 }
-            ],
-            environment: {
-                browser: 'Chrome 120.0',
-                os: 'Windows 11',
-                nodeVersion: '18.17.0',
-                testFramework: 'Jest 29.0'
-            }
-        };
-    }
+const generateTestResultsJson = (jobId: string, testType: string, status: string): any => {
+    return {
+        jobId,
+        testType,
+        status,
+        timestamp: new Date().toISOString(),
+        summary: {
+            total: 25,
+            passed: status === 'passed' ? 25 : 15,
+            failed: status === 'passed' ? 0 : 10,
+            skipped: 0,
+            duration: Math.floor(Math.random() * 300) + 60
+        },
+        tests: [
+            { name: 'Login functionality', status: 'passed', duration: 5.2 },
+            { name: 'User registration', status: 'passed', duration: 3.8 },
+            { name: 'Data validation', status: 'passed', duration: 2.1 },
+            { name: 'API endpoints', status: status === 'passed' ? 'passed' : 'failed', duration: 8.5 },
+            { name: 'Database operations', status: 'passed', duration: 4.3 }
+        ],
+        environment: {
+            browser: 'Chrome 120.0',
+            os: 'Windows 11',
+            nodeVersion: '18.17.0',
+            testFramework: 'Jest 29.0'
+        }
+    };
+};
 
-    private generateCoverageReport(testType: string): string {
-        const coverage = Math.floor(Math.random() * 30) + 70;
-        return `<!DOCTYPE html>
+const generateCoverageReport = (testType: string): string => {
+    const coverage = Math.floor(Math.random() * 30) + 70;
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -281,10 +166,36 @@ export class DummyDataGenerator {
     </div>
 </body>
 </html>`;
-    }
+};
 
-    private generateCategorySummary(categoryName: string): string {
-        return `# ${categoryName.replace('_', ' ').toUpperCase()} SUMMARY
+const generatePerformanceData = (): any => {
+    return {
+        timestamp: new Date().toISOString(),
+        metrics: {
+            responseTime: Math.floor(Math.random() * 1000) + 100,
+            throughput: Math.floor(Math.random() * 1000) + 500,
+            memoryUsage: Math.floor(Math.random() * 500) + 100,
+            cpuUsage: Math.floor(Math.random() * 80) + 10
+        },
+        benchmarks: {
+            pageLoad: Math.floor(Math.random() * 2000) + 500,
+            domReady: Math.floor(Math.random() * 1000) + 200,
+            firstPaint: Math.floor(Math.random() * 500) + 100
+        }
+    };
+};
+
+const generateMetricsCsv = (testType: string): string => {
+    return `timestamp,test_type,metric_name,value,unit
+${new Date().toISOString()},${testType},response_time,${Math.floor(Math.random() * 1000) + 100},ms
+${new Date().toISOString()},${testType},memory_usage,${Math.floor(Math.random() * 500) + 100},MB
+${new Date().toISOString()},${testType},cpu_usage,${Math.floor(Math.random() * 80) + 10},%
+${new Date().toISOString()},${testType},error_rate,${Math.floor(Math.random() * 5)},%
+${new Date().toISOString()},${testType},success_rate,${Math.floor(Math.random() * 20) + 80},%`;
+};
+
+const generateCategorySummary = (categoryName: string): string => {
+    return `# ${categoryName.replace('_', ' ').toUpperCase()} SUMMARY
 
 ## Overview
 This directory contains ${categoryName.replace('_', ' ')} results and artifacts.
@@ -302,10 +213,10 @@ This directory contains ${categoryName.replace('_', ' ')} results and artifacts.
 
 ## Last Updated
 ${new Date().toISOString()}`;
-    }
+};
 
-    private generateCategoryReadme(categoryName: string): string {
-        return `# ${categoryName.replace('_', ' ').toUpperCase()} Documentation
+const generateCategoryReadme = (categoryName: string): string => {
+    return `# ${categoryName.replace('_', ' ').toUpperCase()} Documentation
 
 ## Description
 This directory contains all ${categoryName.replace('_', ' ')} related files and results.
@@ -332,141 +243,49 @@ ${categoryName}/
 
 ## Contact
 For questions about these tests, contact the QA team.`;
-    }
+};
 
-    private generateCategoryConfig(categoryName: string): any {
-        return {
-            category: categoryName,
-            testFramework: "Jest",
-            timeout: 30000,
-            retries: 3,
-            parallel: true,
-            coverage: {
-                enabled: true,
-                threshold: 80
-            },
-            environment: {
-                node: "18.17.0",
-                browser: "Chrome 120.0"
-            },
-            lastUpdated: new Date().toISOString()
-        };
-    }
+const generateCategoryConfig = (categoryName: string): any => {
+    return {
+        category: categoryName,
+        testFramework: "Jest",
+        timeout: 30000,
+        retries: 3,
+        parallel: true,
+        coverage: {
+            enabled: true,
+            threshold: 80
+        },
+        environment: {
+            node: "18.17.0",
+            browser: "Chrome 120.0"
+        },
+        lastUpdated: new Date().toISOString()
+    };
+};
 
-    private generateConsoleLog(testType: string): string {
-        const timestamp = new Date().toISOString();
-        return `[${timestamp}] CONSOLE Browser console output for ${testType} tests
-[${timestamp}] INFO Page loaded successfully
-[${timestamp}] INFO JavaScript execution started
-[${timestamp}] WARN Deprecated API usage detected
-[${timestamp}] ERROR Uncaught TypeError: Cannot read property 'length' of undefined
-[${timestamp}] INFO Test assertions completed
-[${timestamp}] INFO Console logs captured for debugging`;
-    }
-
-    private generateNetworkLog(testType: string): string {
-        const timestamp = new Date().toISOString();
-        return `[${timestamp}] NETWORK HTTP Request: GET /api/test-data
-[${timestamp}] NETWORK Response: 200 OK (45ms)
-[${timestamp}] NETWORK HTTP Request: POST /api/validate
-[${timestamp}] NETWORK Response: 201 Created (123ms)
-[${timestamp}] NETWORK HTTP Request: GET /api/results
-[${timestamp}] NETWORK Response: 200 OK (67ms)
-[${timestamp}] NETWORK WebSocket connection established
-[${timestamp}] NETWORK Real-time updates enabled`;
-    }
-
-    private generatePerformanceData(): any {
-        return {
-            timestamp: new Date().toISOString(),
-            metrics: {
-                responseTime: Math.floor(Math.random() * 1000) + 100,
-                throughput: Math.floor(Math.random() * 1000) + 500,
-                memoryUsage: Math.floor(Math.random() * 500) + 100,
-                cpuUsage: Math.floor(Math.random() * 80) + 10
-            },
-            benchmarks: {
-                pageLoad: Math.floor(Math.random() * 2000) + 500,
-                domReady: Math.floor(Math.random() * 1000) + 200,
-                firstPaint: Math.floor(Math.random() * 500) + 100
-            }
-        };
-    }
-
-    private generateMetricsCsv(testType: string): string {
-        return `timestamp,test_type,metric_name,value,unit
-${new Date().toISOString()},${testType},response_time,${Math.floor(Math.random() * 1000) + 100},ms
-${new Date().toISOString()},${testType},memory_usage,${Math.floor(Math.random() * 500) + 100},MB
-${new Date().toISOString()},${testType},cpu_usage,${Math.floor(Math.random() * 80) + 10},%
-${new Date().toISOString()},${testType},error_rate,${Math.floor(Math.random() * 5)},%
-${new Date().toISOString()},${testType},success_rate,${Math.floor(Math.random() * 20) + 80},%`;
-    }
-
-    private generateLatestResults(categoryName: string): any {
-        return {
-            category: categoryName,
-            timestamp: new Date().toISOString(),
-            summary: {
-                total: Math.floor(Math.random() * 50) + 20,
-                passed: Math.floor(Math.random() * 40) + 15,
-                failed: Math.floor(Math.random() * 10) + 1,
-                skipped: Math.floor(Math.random() * 5)
-            },
-            recentTests: [
-                { name: 'Basic functionality test', status: 'passed', duration: 2.5 },
-                { name: 'Edge case validation', status: 'failed', duration: 1.8 },
-                { name: 'Performance benchmark', status: 'passed', duration: 15.2 }
-            ]
-        };
-    }
-
-    private generateTrendsCsv(categoryName: string): string {
-        const dates = [];
-        for (let i = 7; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            dates.push(date.toISOString().split('T')[0]);
+const generateTestSuite = (suiteName: string, categoryName: string): any => {
+    return {
+        suiteName,
+        category: categoryName,
+        timestamp: new Date().toISOString(),
+        tests: [
+            { name: 'Test 1', status: 'passed', duration: 1.2 },
+            { name: 'Test 2', status: 'passed', duration: 0.8 },
+            { name: 'Test 3', status: 'failed', duration: 2.1 }
+        ],
+        summary: {
+            total: 3,
+            passed: 2,
+            failed: 1,
+            duration: 4.1
         }
+    };
+};
 
-        let csv = 'date,pass_rate,execution_time,test_count\n';
-        dates.forEach(date => {
-            csv += `${date},${Math.floor(Math.random() * 20) + 75},${Math.floor(Math.random() * 30) + 10},${Math.floor(Math.random() * 20) + 15}\n`;
-        });
-        return csv;
-    }
-
-    private generateFailuresLog(categoryName: string): string {
-        const timestamp = new Date().toISOString();
-        return `[${timestamp}] FAILURE ${categoryName} - Test case: User authentication
-[${timestamp}] ERROR Assertion failed: Expected user to be logged in
-[${timestamp}] STACK at AuthTest.verifyLogin (AuthTest.js:45:12)
-[${timestamp}] FAILURE ${categoryName} - Test case: Data validation
-[${timestamp}] ERROR Validation failed: Invalid email format
-[${timestamp}] STACK at ValidationTest.checkEmail (ValidationTest.js:23:8)`;
-    }
-
-    private generateTestSuite(suiteName: string, categoryName: string): any {
-        return {
-            suiteName,
-            category: categoryName,
-            timestamp: new Date().toISOString(),
-            tests: [
-                { name: 'Test 1', status: 'passed', duration: 1.2 },
-                { name: 'Test 2', status: 'passed', duration: 0.8 },
-                { name: 'Test 3', status: 'failed', duration: 2.1 }
-            ],
-            summary: {
-                total: 3,
-                passed: 2,
-                failed: 1,
-                duration: 4.1
-            }
-        };
-    }
-
-    private generateCoverageSummary(categoryName: string): string {
-        const coverage = Math.floor(Math.random() * 30) + 70;
-        return `<!DOCTYPE html>
+const generateCoverageSummary = (categoryName: string): string => {
+    const coverage = Math.floor(Math.random() * 30) + 70;
+    return `<!DOCTYPE html>
 <html>
 <head><title>Coverage Summary - ${categoryName}</title></head>
 <body>
@@ -478,29 +297,133 @@ ${new Date().toISOString()},${testType},success_rate,${Math.floor(Math.random() 
     <p>Generated: ${new Date().toISOString()}</p>
 </body>
 </html>`;
+};
+
+// Main service functions
+const createTestJob = async (jobId: string, testType: string, status: string, baseDir: string): Promise<void> => {
+    const jobDir = path.join(baseDir, jobId);
+    await ensureDirectoryExists(jobDir);
+
+    // Create essential test log files (reduced for demo)
+    const logFiles = [
+        { name: `${testType}_test.log`, content: generateTestLog(testType, status) },
+        { name: 'error.log', content: generateErrorLog(status) },
+        { name: 'debug.log', content: generateDebugLog(testType) }
+    ];
+
+    for (const logFile of logFiles) {
+        const filePath = path.join(jobDir, logFile.name);
+        fs.writeFileSync(filePath, logFile.content);
     }
 
-    private generatePerformanceReport(categoryName: string): any {
-        return {
-            category: categoryName,
-            timestamp: new Date().toISOString(),
-            metrics: {
-                averageResponseTime: Math.floor(Math.random() * 500) + 100,
-                maxResponseTime: Math.floor(Math.random() * 1000) + 500,
-                throughput: Math.floor(Math.random() * 1000) + 500,
-                errorRate: Math.floor(Math.random() * 5)
-            },
-            recommendations: [
-                'Optimize database queries',
-                'Implement caching strategy',
-                'Consider load balancing'
-            ]
-        };
+    // Create test report HTML
+    const reportPath = path.join(jobDir, 'test_report.html');
+    const reportContent = generateTestReport(jobId, testType, status);
+    fs.writeFileSync(reportPath, reportContent);
+
+    // Create JSON results
+    const jsonPath = path.join(jobDir, 'test_results.json');
+    const jsonContent = generateTestResultsJson(jobId, testType, status);
+    fs.writeFileSync(jsonPath, JSON.stringify(jsonContent, null, 2));
+
+    // Create coverage report
+    const coveragePath = path.join(jobDir, 'coverage_report.html');
+    const coverageContent = generateCoverageReport(testType);
+    fs.writeFileSync(coveragePath, coverageContent);
+
+    // Create essential additional files (reduced for demo)
+    const additionalFiles = [
+        { name: 'performance.json', content: JSON.stringify(generatePerformanceData(), null, 2) },
+        { name: 'metrics.csv', content: generateMetricsCsv(testType) }
+    ];
+
+    for (const file of additionalFiles) {
+        const filePath = path.join(jobDir, file.name);
+        fs.writeFileSync(filePath, file.content);
     }
 
-    private async ensureDirectoryExists(dirPath: string): Promise<void> {
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`Created test job: ${jobId} (${testType}) - ${status}`);
+};
+
+const createTestCategory = async (categoryName: string, baseDir: string): Promise<void> => {
+    const categoryDir = path.join(baseDir, categoryName);
+    await ensureDirectoryExists(categoryDir);
+
+    // Create essential summary files for each category (reduced for demo)
+    const summaryFiles = [
+        { name: 'summary.txt', content: generateCategorySummary(categoryName) },
+        { name: 'README.md', content: generateCategoryReadme(categoryName) },
+        { name: 'config.json', content: generateCategoryConfig(categoryName) }
+    ];
+
+    for (const file of summaryFiles) {
+        const filePath = path.join(categoryDir, file.name);
+        const content = typeof file.content === 'string' ? file.content : JSON.stringify(file.content, null, 2);
+        fs.writeFileSync(filePath, content);
+    }
+
+    // Create a results subdirectory with essential test files (reduced for demo)
+    const resultsDir = path.join(categoryDir, 'results');
+    await ensureDirectoryExists(resultsDir);
+
+    const resultFiles = [
+        { name: 'test_suite_1.json', content: JSON.stringify(generateTestSuite('suite_1', categoryName), null, 2) },
+        { name: 'coverage_summary.html', content: generateCoverageSummary(categoryName) }
+    ];
+
+    for (const file of resultFiles) {
+        const filePath = path.join(resultsDir, file.name);
+        fs.writeFileSync(filePath, file.content);
+    }
+
+    console.log(`Created test category: ${categoryName}`);
+};
+
+export const generateTestData = async (dataDir: string = '/data'): Promise<void> => {
+    try {
+        console.log('Generating comprehensive test data...');
+
+        // Create main test pipeline results directory
+        const testResultsDir = path.join(dataDir, 'test_pipeline_results');
+        await ensureDirectoryExists(testResultsDir);
+
+        // Generate 25 test job directories for demo purposes
+        const testJobs = [];
+        const testTypes = ['integration', 'unit', 'e2e', 'performance', 'smoke', 'regression', 'security', 'load', 'api', 'ui'];
+        const statuses = ['passed', 'failed', 'passed', 'passed', 'failed', 'passed', 'passed', 'failed', 'passed', 'passed'];
+
+        for (let i = 1; i <= 25; i++) {
+            const jobId = `job_${i.toString().padStart(3, '0')}`;
+            const testType = testTypes[i % testTypes.length];
+            const status = statuses[i % statuses.length];
+            testJobs.push({ id: jobId, type: testType, status });
         }
+
+        for (const job of testJobs) {
+            await createTestJob(job.id, job.type, job.status, testResultsDir);
+        }
+
+        // Create additional directories for different test categories (reduced for demo)
+        await createTestCategory('unit_tests', testResultsDir);
+        await createTestCategory('integration_tests', testResultsDir);
+        await createTestCategory('e2e_tests', testResultsDir);
+
+        console.log('✅ Test data generation completed successfully');
+    } catch (error) {
+        console.error('❌ Error generating test data:', error);
+        throw error;
+    }
+};
+
+// Legacy class export for backward compatibility
+export class DummyDataGenerator {
+    private dataDir: string;
+
+    constructor(dataDir: string = '/data') {
+        this.dataDir = dataDir;
+    }
+
+    public async generateTestData(): Promise<void> {
+        return generateTestData(this.dataDir);
     }
 }

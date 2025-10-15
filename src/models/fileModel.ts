@@ -74,13 +74,11 @@ const FileSchema = new Schema<IFile>({
     collection: 'files'
 });
 
-// Indexes for better performance
 FileSchema.index({ path: 1 });
 FileSchema.index({ parentPath: 1 });
 FileSchema.index({ isFolder: 1 });
 FileSchema.index({ name: 'text', 'metadata.description': 'text' });
 
-// Virtual for getting parent directory
 FileSchema.virtual('parent').get(function () {
     if (this.parentPath) {
         return this.parentPath;
@@ -90,28 +88,23 @@ FileSchema.virtual('parent').get(function () {
     return pathParts.join('/') || '/';
 });
 
-// Method to get children
 FileSchema.methods.getChildren = async function () {
     return await FileModel.find({ parentPath: this.path });
 };
 
-// Method to check if path exists
 FileSchema.statics.pathExists = async function (path: string): Promise<boolean> {
     const file = await this.findOne({ path });
     return !!file;
 };
 
-// Method to find by path
 FileSchema.statics.findByPath = async function (path: string) {
     return await this.findOne({ path });
 };
 
-// Method to get directory contents
 FileSchema.statics.getDirectoryContents = async function (path: string) {
     return await this.find({ parentPath: path }).sort({ isFolder: -1, name: 1 });
 };
 
-// Method to search files
 FileSchema.statics.searchFiles = async function (query: string, limit: number = 50) {
     return await this.find(
         { $text: { $search: query } },

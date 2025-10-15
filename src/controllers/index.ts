@@ -1,1 +1,1 @@
-export { FileController } from './fileController';
+export { listDirectory, getFileContentHandler, downloadItem, getFileInfoHandler } from './fileController';

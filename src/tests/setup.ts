@@ -2,33 +2,27 @@ import { beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Test configuration
 export const TEST_DATA_DIR = path.join(__dirname, '../data/test');
 export const TEST_PORT = 5001;
 
-// Setup test environment
 beforeAll(async () => {
-    // Create test data directory
     if (!fs.existsSync(TEST_DATA_DIR)) {
         fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
     }
 });
 
 afterAll(async () => {
-    // Cleanup test data directory
     if (fs.existsSync(TEST_DATA_DIR)) {
         fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
     }
 });
 
 beforeEach(() => {
-    // Reset test environment before each test
     process.env.NODE_ENV = 'test';
     process.env.DATA_DIR = TEST_DATA_DIR;
 });
 
 afterEach(() => {
-    // Cleanup after each test
     if (fs.existsSync(TEST_DATA_DIR)) {
         const files = fs.readdirSync(TEST_DATA_DIR);
         files.forEach(file => {
@@ -42,8 +36,6 @@ afterEach(() => {
         });
     }
 });
-
-// Test utilities
 export const createTestFile = (filename: string, content: string): string => {
     const filePath = path.join(TEST_DATA_DIR, filename);
     fs.writeFileSync(filePath, content);
